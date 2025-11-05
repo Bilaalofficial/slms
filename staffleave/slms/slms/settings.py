@@ -53,10 +53,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'slms.urls'
 
+# Update the TEMPLATES DIRS setting to look in 'slms/templates'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': ['templates'],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Update path here
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -68,6 +69,7 @@ TEMPLATES = [
         },
     },
 ]
+
 
 WSGI_APPLICATION = 'slms.wsgi.application'
 

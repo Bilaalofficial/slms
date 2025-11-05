@@ -1,15 +1,17 @@
-# Use an official Python runtime as the base image
+# Use Python 3.9 as the base image
 FROM python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install dependencies
+# Copy the requirements file into the container
 COPY requirements.txt /app/
+
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire project into the container
-COPY . /app/
+# Copy the entire 'staffleave/slms' directory into '/app' inside the container
+COPY staffleave/slms /app/slms
 
 # Expose port 8000 to access the Django app
 EXPOSE 8000
@@ -17,5 +19,5 @@ EXPOSE 8000
 # Set environment variable for Django
 ENV PYTHONUNBUFFERED 1
 
-# Run Django development server (for local development)
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Run Django development server, pointing to the correct path for manage.py
+CMD ["python", "/app/slms/manage.py", "runserver", "0.0.0.0:8000"]
