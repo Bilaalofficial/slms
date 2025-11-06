@@ -4,7 +4,7 @@ pipeline {
     environment {
         VIRTUALENV = 'venv'
         IMAGE_NAME = 'staff-leave-management'
-        REGISTRY = 'your-docker-repo'  // Replace with your Docker registry if using one
+        REGISTRY = 'bilaaaall/staff-leave-management'  // Replace with your Docker registry if using one
     }
 
     stages {
