@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { docker 'python:3.9' }  // Use the official Python Docker image for the entire pipeline
 
     environment {
         VIRTUALENV = 'venv'
@@ -8,28 +8,23 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
+                // Checkout the code from GitHub (This assumes Jenkins is set up with the appropriate credentials)
                 checkout scm
-            }
-        }
-
-        stage('Install Python 3') {
-            steps {
-                script {
-                    // Install Python 3 on the Jenkins agent
-                    sh 'sudo apt-get update'
-                    sh 'sudo apt-get install -y python3 python3-pip python3-venv'
-                }
             }
         }
 
         stage('Set up Python Environment') {
             steps {
                 script {
-                    // Create a virtual environment and install dependencies
-                    sh 'python3 -m venv $VIRTUALENV'
-                    sh './$VIRTUALENV/bin/pip install -r requirements.txt'
+                    if (fileExists('requirements.txt')) {
+                        // Create a virtual environment and install dependencies
+                        sh 'python3 -m venv $VIRTUALENV'
+                        sh './$VIRTUALENV/bin/pip install -r requirements.txt'
+                    } else {
+                        error 'requirements.txt not found!'
+                    }
                 }
             }
         }
@@ -37,8 +32,8 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Run tests
-                    sh './$VIRTUALENV/bin/python manage.py test'
+                    // Run tests (Ensure the Django or relevant test environment is properly set up)
+                    sh './$VIRTUALENV/bin/python manage.py test --verbosity=2'
                 }
             }
         }
@@ -46,9 +41,13 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image..."
-                    // Build the Docker image from the Dockerfile
-                    sh 'docker build -t $IMAGE_NAME .'
+                    if (fileExists('Dockerfile')) {
+                        echo "Building Docker image..."
+                        // Build the Docker image from the Dockerfile
+                        sh 'docker build -t $IMAGE_NAME .'
+                    } else {
+                        error 'Dockerfile not found!'
+                    }
                 }
             }
         }
@@ -57,6 +56,12 @@ pipeline {
             steps {
                 script {
                     echo "Running Docker container..."
+                    // Stop the existing container (if running) and remove it
+                    def containerId = sh(script: 'docker ps -q --filter "name=$IMAGE_NAME"', returnStdout: true).trim()
+                    if (containerId) {
+                        sh 'docker stop $containerId'  // Stop the existing container
+                        sh 'docker rm $containerId'  // Remove the old container
+                    }
                     // Run the Docker container
                     sh 'docker run -d -p 8000:8000 $IMAGE_NAME'
                 }
@@ -87,9 +92,13 @@ pipeline {
                 script {
                     echo "Deploying Docker container..."
                     // Optionally, restart the container (if necessary) or deploy it to a remote server
-                    sh 'docker stop $(docker ps -q --filter "name=$IMAGE_NAME")'  // Stop the existing container
-                    sh 'docker rm $(docker ps -a -q --filter "name=$IMAGE_NAME")'  // Remove the old container
-                    sh 'docker run -d -p 8000:8000 $IMAGE_NAME'  // Run the new container
+                    def containerId = sh(script: 'docker ps -q --filter "name=$IMAGE_NAME"', returnStdout: true).trim()
+                    if (containerId) {
+                        sh 'docker stop $containerId'  // Stop the existing container
+                        sh 'docker rm $containerId'  // Remove the old container
+                    }
+                    // Run the new container
+                    sh 'docker run -d -p 8000:8000 $IMAGE_NAME'
                 }
             }
         }
