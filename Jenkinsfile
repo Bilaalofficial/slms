@@ -61,7 +61,7 @@ pipeline {
                         sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ${AWS_USER}@${params.AWS_INSTANCE_IP} \
                         'docker pull ${DOCKER_IMAGE} && \
-                        docker run -d -p 80:80 --name python-app ${DOCKER_IMAGE}'
+                        docker run -d -p 80:8000 --name python-app ${DOCKER_IMAGE}'
                         """
                     }
                 }
