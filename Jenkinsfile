@@ -1,89 +1,94 @@
 pipeline {
-    agent { docker 'python:3.9' }
+    agent any
+    parameters {
+        string(name: 'AWS_INSTANCE_IP', defaultValue: '', description: 'Enter the Public IP of your AWS EC2 instance')
+    }
 
     environment {
-        VIRTUALENV = 'venv'
-        IMAGE_NAME = 'staff-leave-management'
-        REGISTRY = 'bilaaaall/staff-leave-management'  // Replace with your Docker registry
-        EC2_IP = '13.232.91.247'  // Your EC2 public IP address
-        EC2_USER = 'ubuntu'  // EC2 username
-        SSH_KEY_PATH = '/home/ubuntu/my-key.pem'  // Path to your private key
+        // Docker image name on DockerHub or local registry
+        DOCKER_IMAGE = 'bilaaaall/staff-leave-management'  // Replace with your Docker image name
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout Code') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Set up Python Environment') {
-            steps {
-                script {
-                    if (fileExists('requirements.txt')) {
-                        sh 'python3 -m venv $VIRTUALENV'
-                        sh './$VIRTUALENV/bin/pip install -r requirements.txt'
-                    } else {
-                        error 'requirements.txt not found!'
-                    }
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                script {
-                    sh './$VIRTUALENV/bin/python manage.py test --verbosity=2'
-                }
+                // Checkout the code from the GitHub repository
+                git branch: 'main', url: 'https://github.com/Bilaalofficial/slms.git'  // Replace with your repo URL
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    if (fileExists('Dockerfile')) {
-                        echo "Building Docker image..."
-                        sh 'docker build -t $IMAGE_NAME .'
-                    } else {
-                        error 'Dockerfile not found!'
+                    // Build the Docker image for the Python app
+                    sh """
+                    docker build -t ${DOCKER_IMAGE} .
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to Local Docker') {
+            steps {
+                script {
+                    // Stop and remove any existing container named 'python-app'
+                    sh """
+                    docker ps -q -f name=python-app | xargs -r docker stop
+                    docker ps -a -q -f name=python-app | xargs -r docker rm
+                    """
+                    
+                    // Run the Docker container for the Python app
+                    sh """
+                    docker run -d -p 80:80 --name python-app ${DOCKER_IMAGE}
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to AWS EC2 (SSH via Jenkins Credential)') {
+            steps {
+                script {
+                    // Using SSH credentials in Jenkins to deploy to EC2 instance
+                    withCredentials([sshUserPrivateKey(credentialsId: 'aws-credentials', keyFileVariable: 'SSH_KEY_PATH', usernameVariable: 'AWS_USER')]) {
+                        // SSH commands to stop and remove any existing 'python-app' container on the EC2 instance
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ${AWS_USER}@${params.AWS_INSTANCE_IP} \
+                        'docker ps -q -f name=python-app | xargs -r docker stop && \
+                        docker ps -a -q -f name=python-app | xargs -r docker rm'
+                        """
+
+                        // Pull the Docker image and run a new container on the EC2 instance
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ${AWS_USER}@${params.AWS_INSTANCE_IP} \
+                        'docker pull ${DOCKER_IMAGE} && \
+                        docker run -d -p 80:80 --name python-app ${DOCKER_IMAGE}'
+                        """
                     }
                 }
             }
         }
 
-        stage('Push Docker Image to Registry') {
-            when {
-                branch 'main'
-            }
+        stage('Verify Deployment') {
             steps {
                 script {
-                    echo "Pushing Docker image to registry..."
-                    sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
-                    sh 'docker tag $IMAGE_NAME $REGISTRY/$IMAGE_NAME:latest'
-                    sh 'docker push $REGISTRY/$IMAGE_NAME:latest'
+                    // Test if the app is running by accessing the EC2 public IP
+                    def response = sh(script: "curl -s http://${params.AWS_INSTANCE_IP}", returnStdout: true).trim()
+                    
+                    // Check if the container is responding with "Welcome to the Python App" or similar in the response
+                    if (response.contains('Welcome to the Python App')) {  // Replace this with a string specific to your app
+                        echo "Python App is running successfully!"
+                    } else {
+                        error "Deployment failed. Python App is not running."
+                    }
                 }
             }
         }
+    }
 
-        stage('Deploy to AWS EC2') {
-            steps {
-                script {
-                    echo "Deploying Docker container to AWS EC2..."
-                    sh """
-                        ssh -i ${SSH_KEY_PATH} ${EC2_USER}@${EC2_IP} <<EOF
-                        echo "Stopping and removing old container..."
-                        docker stop ${IMAGE_NAME} || true
-                        docker rm ${IMAGE_NAME} || true
-
-                        echo "Pulling the latest Docker image..."
-                        docker pull ${REGISTRY}/${IMAGE_NAME}:latest
-
-                        echo "Running the Docker container..."
-                        docker run -d -p 8000:8000 --name ${IMAGE_NAME} ${REGISTRY}/${IMAGE_NAME}:latest
-                        EOF
-                    """
-                }
-            }
+    post {
+        always {
+            // Clean up any resources if needed
+            echo 'Pipeline finished!'
         }
     }
 }
