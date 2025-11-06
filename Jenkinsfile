@@ -39,7 +39,7 @@ pipeline {
                     
                     // Run the Docker container for the Python app
                     sh """
-                    docker run -d -p 80:80 --name python-app ${DOCKER_IMAGE}
+                    docker run -d -p 80:8000 --name python-app ${DOCKER_IMAGE}
                     """
                 }
             }
