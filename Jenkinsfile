@@ -1,16 +1,18 @@
 pipeline {
-    agent { docker 'python:3.9' }  // Use the official Python Docker image for the entire pipeline
+    agent { docker 'python:3.9' }
 
     environment {
         VIRTUALENV = 'venv'
         IMAGE_NAME = 'staff-leave-management'
-        REGISTRY = 'bilaaaall/staff-leave-management'  // Replace with your Docker registry if using one
+        REGISTRY = 'bilaaaall/staff-leave-management'  // Replace with your Docker registry
+        EC2_IP = '13.232.91.247'  // Your EC2 public IP address
+        EC2_USER = 'ubuntu'  // EC2 username
+        SSH_KEY_PATH = '/home/ubuntu/my-key.pem'  // Path to your private key
     }
 
     stages {
         stage('Checkout SCM') {
             steps {
-                // Checkout the code from GitHub (This assumes Jenkins is set up with the appropriate credentials)
                 checkout scm
             }
         }
@@ -19,7 +21,6 @@ pipeline {
             steps {
                 script {
                     if (fileExists('requirements.txt')) {
-                        // Create a virtual environment and install dependencies
                         sh 'python3 -m venv $VIRTUALENV'
                         sh './$VIRTUALENV/bin/pip install -r requirements.txt'
                     } else {
@@ -32,7 +33,6 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Run tests (Ensure the Django or relevant test environment is properly set up)
                     sh './$VIRTUALENV/bin/python manage.py test --verbosity=2'
                 }
             }
@@ -43,7 +43,6 @@ pipeline {
                 script {
                     if (fileExists('Dockerfile')) {
                         echo "Building Docker image..."
-                        // Build the Docker image from the Dockerfile
                         sh 'docker build -t $IMAGE_NAME .'
                     } else {
                         error 'Dockerfile not found!'
@@ -52,53 +51,37 @@ pipeline {
             }
         }
 
-        stage('Run Docker Container') {
-            steps {
-                script {
-                    echo "Running Docker container..."
-                    // Stop the existing container (if running) and remove it
-                    def containerId = sh(script: 'docker ps -q --filter "name=$IMAGE_NAME"', returnStdout: true).trim()
-                    if (containerId) {
-                        sh 'docker stop $containerId'  // Stop the existing container
-                        sh 'docker rm $containerId'  // Remove the old container
-                    }
-                    // Run the Docker container
-                    sh 'docker run -d -p 8000:8000 $IMAGE_NAME'
-                }
-            }
-        }
-
         stage('Push Docker Image to Registry') {
             when {
-                branch 'main' // Push the image only when on the main branch
+                branch 'main'
             }
             steps {
                 script {
                     echo "Pushing Docker image to registry..."
-                    // Log in to the Docker registry (for Docker Hub, use your Docker Hub credentials)
                     sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
-                    
-                    // Tag the Docker image with the latest tag
                     sh 'docker tag $IMAGE_NAME $REGISTRY/$IMAGE_NAME:latest'
-                    
-                    // Push the Docker image to your registry
                     sh 'docker push $REGISTRY/$IMAGE_NAME:latest'
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to AWS EC2') {
             steps {
                 script {
-                    echo "Deploying Docker container..."
-                    // Optionally, restart the container (if necessary) or deploy it to a remote server
-                    def containerId = sh(script: 'docker ps -q --filter "name=$IMAGE_NAME"', returnStdout: true).trim()
-                    if (containerId) {
-                        sh 'docker stop $containerId'  // Stop the existing container
-                        sh 'docker rm $containerId'  // Remove the old container
-                    }
-                    // Run the new container
-                    sh 'docker run -d -p 8000:8000 $IMAGE_NAME'
+                    echo "Deploying Docker container to AWS EC2..."
+                    sh """
+                        ssh -i ${SSH_KEY_PATH} ${EC2_USER}@${EC2_IP} <<EOF
+                        echo "Stopping and removing old container..."
+                        docker stop ${IMAGE_NAME} || true
+                        docker rm ${IMAGE_NAME} || true
+
+                        echo "Pulling the latest Docker image..."
+                        docker pull ${REGISTRY}/${IMAGE_NAME}:latest
+
+                        echo "Running the Docker container..."
+                        docker run -d -p 8000:8000 --name ${IMAGE_NAME} ${REGISTRY}/${IMAGE_NAME}:latest
+                        EOF
+                    """
                 }
             }
         }
