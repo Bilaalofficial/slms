@@ -10,7 +10,7 @@ pipeline {
         // Stage 1: Checkout Code
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/Bilaalofficial/slms.git'  // Clone your Git repo
+                git branch: 'main', url: 'https://github.com/Bilaalofficial/slms.git'
             }
         }
 
@@ -18,46 +18,36 @@ pipeline {
         stage('Set Up Python and Virtual Environment') {
             steps {
                 script {
-                    // Install virtual environment and dependencies
+                    // Create virtual environment
                     sh 'python3 -m venv $VIRTUAL_ENV'
                     sh './$VIRTUAL_ENV/bin/pip install --upgrade pip'  // Upgrade pip
                     sh './$VIRTUAL_ENV/bin/pip install -r requirements.txt'  // Install dependencies
-                    sh './$VIRTUAL_ENV/bin/pip install pytest'  // Install pytest for running tests
+                    sh './$VIRTUAL_ENV/bin/pip install pytest pytest-django'  // Install pytest and pytest-django
                 }
             }
         }
 
-        // Stage 3: Run Django Tests (using pytest)
+        // Stage 3: Run Tests
         stage('Run Tests') {
             steps {
                 script {
-                    // Run Django tests using pytest
-                    sh './$VIRTUAL_ENV/bin/pytest --maxfail=1 --disable-warnings -v'
+                    // Run tests using pytest (explicitly point to tests directory if needed)
+                    sh './$VIRTUAL_ENV/bin/pytest tests/ --maxfail=1 --disable-warnings -v'
                 }
             }
         }
 
-        // Stage 4: Collect Static Files (if applicable)
-        stage('Collect Static Files') {
-            steps {
-                script {
-                    // Collect static files for production (if you use static files)
-                    sh './$VIRTUAL_ENV/bin/python manage.py collectstatic --noinput'
-                }
-            }
-        }
-
-        // Stage 5: Build Docker Image (if Dockerfile is present)
+        // Stage 4: Build Docker Image (if Dockerfile is present)
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image for deployment
+                    // Build Docker image
                     sh 'docker build -t $DOCKER_IMAGE .'
                 }
             }
         }
 
-        // Stage 6: Deploy to Docker
+        // Stage 5: Deploy to Docker
         stage('Deploy to Docker') {
             steps {
                 script {
