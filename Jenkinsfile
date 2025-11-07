@@ -41,7 +41,8 @@ pipeline {
 
                     find . -name settings.py -print
 
-                    ./$VIRTUAL_ENV/bin/pytest tests/ \
+                    # ✅ Let pytest auto-discover tests (this fixes the error)
+                    ./$VIRTUAL_ENV/bin/pytest \
                         --ds=slms.slms.settings \
                         --maxfail=1 \
                         --disable-warnings \
