@@ -30,7 +30,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 sh '''
-                    set -euxo pipefail
+                    set -e
 
                     export DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE
                     export PYTHONPATH=$PYTHONPATH
