@@ -4,6 +4,7 @@ pipeline {
     environment {
         VIRTUAL_ENV = '.venv'  // Virtual environment directory
         DOCKER_IMAGE = 'python-app'  // Docker image name
+        PROJECT_PATH = 'staffleave/slms'  // Path to your Django project
     }
 
     stages {
@@ -31,9 +32,9 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Set Python path to include the directory where staffleave exists
-                    sh 'export PYTHONPATH=$(pwd)/staffleave/slms:$PYTHONPATH'
-
+                    // Set Python path to include the directory where manage.py exists
+                    sh 'export PYTHONPATH=$(pwd)/$PROJECT_PATH:$PYTHONPATH'
+                    
                     // Run tests using pytest (explicitly pointing to tests directory if needed)
                     sh './$VIRTUAL_ENV/bin/pytest tests/ --maxfail=1 --disable-warnings -v'
                 }
