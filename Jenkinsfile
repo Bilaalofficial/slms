@@ -7,6 +7,7 @@ pipeline {
     DJANGO_SETTINGS_MODULE = 'slms.settings'
     PYTHONPATH = "${WORKSPACE}/staffleave/slms:${WORKSPACE}/staffleave"
     WORKDIR = 'staffleave/slms'
+    PYTEST = "${WORKSPACE}/.venv/bin/pytest"
   }
 
   stages {
@@ -31,6 +32,7 @@ pipeline {
     stage('Sanity: manage.py exists?') {
       steps {
         sh 'test -f "$WORKDIR/manage.py" && echo "OK: $WORKDIR/manage.py found" || (echo "manage.py not found"; exit 1)'
+        sh 'test -x "$PYTEST" && echo "OK: pytest at $PYTEST" || (echo "pytest not found at $PYTEST"; ls -la ${WORKSPACE}; exit 1)'
       }
     }
 
@@ -43,12 +45,7 @@ pipeline {
             echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
             echo "PYTHONPATH=$PYTHONPATH"
             find . -name settings.py -print
-
-            ../$VIRTUAL_ENV/bin/pytest \
-              --ds=$DJANGO_SETTINGS_MODULE \
-              --maxfail=1 \
-              --disable-warnings \
-              -v
+            $PYTEST --ds=$DJANGO_SETTINGS_MODULE --maxfail=1 --disable-warnings -v
           '''
         }
       }
