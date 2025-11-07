@@ -4,8 +4,9 @@ pipeline {
     environment {
         VIRTUAL_ENV = '.venv'
         DOCKER_IMAGE = 'python-app'
-        DJANGO_SETTINGS_MODULE = 'slms.settings'
-        PYTHONPATH = "${WORKSPACE}/staffleave"
+
+        DJANGO_SETTINGS_MODULE = 'slms.slms.settings'
+        PYTHONPATH = "${WORKSPACE}/staffleave/slms"
     }
 
     stages {
@@ -38,10 +39,10 @@ pipeline {
                     echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
                     echo "PYTHONPATH=$PYTHONPATH"
 
-                    find staffleave -name manage.py -print
+                    find staffleave -name settings.py -print
 
                     ./$VIRTUAL_ENV/bin/pytest tests/ \
-                        --ds=$DJANGO_SETTINGS_MODULE \
+                        --ds=slms.slms.settings \
                         --maxfail=1 \
                         --disable-warnings \
                         -v
