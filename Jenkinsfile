@@ -4,8 +4,6 @@ pipeline {
     environment {
         VIRTUAL_ENV = '.venv'
         DOCKER_IMAGE = 'python-app'
-
-        # ✅ Django project is inside staffleave/slms
         DJANGO_SETTINGS_MODULE = 'slms.settings'
         PYTHONPATH = "${WORKSPACE}/staffleave"
     }
@@ -34,18 +32,14 @@ pipeline {
                 sh '''
                     set -euxo pipefail
 
-                    # ✅ Export correct environment
                     export DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE
                     export PYTHONPATH=$PYTHONPATH
 
-                    echo "### DEBUG ###"
                     echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
                     echo "PYTHONPATH=$PYTHONPATH"
 
-                    echo "Searching for manage.py..."
                     find staffleave -name manage.py -print
 
-                    # ✅ Run pytest using correct project settings
                     ./$VIRTUAL_ENV/bin/pytest tests/ \
                         --ds=$DJANGO_SETTINGS_MODULE \
                         --maxfail=1 \
@@ -77,7 +71,7 @@ pipeline {
     post {
         always {
             cleanWs()
-            echo "✅ Pipeline finished!"
+            echo "Pipeline finished!"
         }
     }
 }
