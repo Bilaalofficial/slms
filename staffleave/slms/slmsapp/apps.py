@@ -3,4 +3,4 @@ from django.apps import AppConfig
 
 class SlmsappConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'slmsapp'
+    name = 'slms.slmsapp'
