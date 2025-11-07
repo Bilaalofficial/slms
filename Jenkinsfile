@@ -18,6 +18,10 @@ pipeline {
         stage('Set Up Python and Virtual Environment') {
             steps {
                 script {
+                    // Install necessary packages if they are missing
+                    sh 'sudo apt-get update'
+                    sh 'sudo apt-get install -y python3 python3-pip python3-venv'
+
                     // Create virtual environment
                     sh 'python3 -m venv $VIRTUAL_ENV'
                     sh './$VIRTUAL_ENV/bin/pip install --upgrade pip'  // Upgrade pip
@@ -27,11 +31,14 @@ pipeline {
             }
         }
 
-        // Stage 3: Run Tests
+        // Stage 3: Set the Python Path and Run Tests
         stage('Run Tests') {
             steps {
                 script {
-                    // Run tests using pytest (explicitly point to tests directory if needed)
+                    // Set Python path to include the directory where manage.py exists
+                    sh 'export PYTHONPATH=$(pwd)/staffleave/slms:$PYTHONPATH'
+
+                    // Run tests using pytest (explicitly pointing to tests directory if needed)
                     sh './$VIRTUAL_ENV/bin/pytest tests/ --maxfail=1 --disable-warnings -v'
                 }
             }
