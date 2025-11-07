@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE = 'python-app'
 
         DJANGO_SETTINGS_MODULE = 'slms.slms.settings'
-        PYTHONPATH = "${WORKSPACE}/staffleave/slms"
+        PYTHONPATH = "${WORKSPACE}/staffleave"
     }
 
     stages {
@@ -39,7 +39,7 @@ pipeline {
                     echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
                     echo "PYTHONPATH=$PYTHONPATH"
 
-                    find staffleave -name settings.py -print
+                    find . -name settings.py -print
 
                     ./$VIRTUAL_ENV/bin/pytest tests/ \
                         --ds=slms.slms.settings \
