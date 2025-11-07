@@ -31,7 +31,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Set Python path to include the directory where manage.py exists
+                    // Set Python path to include the directory where staffleave exists
                     sh 'export PYTHONPATH=$(pwd)/staffleave/slms:$PYTHONPATH'
 
                     // Run tests using pytest (explicitly pointing to tests directory if needed)
